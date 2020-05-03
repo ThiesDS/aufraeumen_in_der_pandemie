@@ -1,0 +1,33 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1588503485878.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "A5135312",
+    "lastKnownWriteTime" : 8030879310627733510,
+    "last_content_update" : 1588503485878,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "cacheKey" : "2A92D17B",
+        "caption" : "data_plotting_ribbon",
+        "contentUrl" : "grid_resource/gridviewer.html?env=&obj=data_plotting_ribbon&cache_key=2A92D17B",
+        "displayedObservations" : 261,
+        "environment" : "",
+        "expression" : "data_plotting_ribbon",
+        "object" : "data_plotting_ribbon",
+        "preview" : 0,
+        "totalObservations" : 261,
+        "variables" : 8
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 6,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_dataframe"
+}

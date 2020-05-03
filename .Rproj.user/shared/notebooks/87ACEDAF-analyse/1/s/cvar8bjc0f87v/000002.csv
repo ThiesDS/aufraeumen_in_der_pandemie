@@ -1,0 +1,6 @@
+"0","data <- data %>%
+  mutate(split = ifelse(dateymd >= ""2020-02-29"",""predict"",""train""))
+"
+"2","Error in ifelse(dateymd >= ""2020-02-29"", ""predict"", ""train"") : 
+  object 'dateymd' not found
+"

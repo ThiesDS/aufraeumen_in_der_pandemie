@@ -1,0 +1,112 @@
+---
+title: "Sperrmüll in der Pandemie"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+```{r, echo=FALSE,results='hide'}
+
+library(tidyverse)
+library(prophet)
+library(reshape2)
+
+```
+
+```{r}
+
+data <- read.csv("./data/google_trends_data_keyword_sperrmuell.csv",
+                 header = TRUE, stringsAsFactors = FALSE,skip=1,
+                 col.names = c("ds","y")) %>%
+  mutate(ds = as.Date(ds))
+
+```
+
+
+```{r}
+
+date_thresh <- "2020-02-01"
+data <- data %>%
+  mutate(split = ifelse(ds >= date_thresh,"predict","train"))
+
+```
+
+```{r}
+
+m <- data %>%
+  filter(split == 'train') %>%
+  prophet(.)
+
+future <- make_future_dataframe(m, periods = (17)*7)
+forecast <- predict(m, future)
+
+```
+
+```{r}
+
+data_modeling <- data %>%
+  left_join(forecast %>%
+              mutate(ds = as.Date(ds)) %>%
+              select(ds, yhat,yhat_lower,yhat_upper)
+            , by=c("ds"="ds"))
+
+
+```
+
+```{r}
+
+last_week_increase <- data_modeling %>% 
+  mutate(diff = (y-yhat)/yhat) %>%
+  filter(ds == max(ds)) %>%
+  pull(diff)
+last_week_increase
+
+```
+
+```{r}
+
+data_plotting <- data_modeling %>%
+  mutate(nachfrage_2019 = ifelse(ds<=as.Date(date_thresh),y,NA),
+         nachfrage_2020_normal = ifelse(ds>=as.Date(date_thresh)-7,yhat,NA),
+         nachfrage_2020_normal_lower = ifelse(ds>=as.Date(date_thresh)-7,yhat_lower,NA),
+         nachfrage_2020_normal_upper = ifelse(ds>=as.Date(date_thresh)-7,yhat_upper,NA),
+         nachfrage_2020_pandemie = ifelse(ds>=as.Date(date_thresh)-7,y,NA)) %>%
+  select(ds, nachfrage_2019,nachfrage_2020_normal,nachfrage_2020_normal_lower,nachfrage_2020_normal_upper,nachfrage_2020_pandemie) %>%
+  melt(., id.vars=c("ds"))
+
+data_plotting_ribbon <- data_modeling %>%
+  mutate(nachfrage_2020_normal_lower = ifelse(ds>=as.Date(date_thresh)-7,yhat_lower,NA),
+         nachfrage_2020_normal_upper = ifelse(ds>=as.Date(date_thresh)-7,yhat_upper,NA))
+
+color <- c(
+  "nachfrage_2019" = "black",
+  "nachfrage_2020_normal" = "black", 
+  "nachfrage_2020_pandemie" = "red"
+)
+linetype <- c(
+  "nachfrage_2019" = "solid",
+  "nachfrage_2020_normal" = "dashed", 
+  "nachfrage_2020_pandemie" = "solid"
+)
+
+data_plotting %>%
+  ggplot() +
+    geom_line(aes(x=ds,y=value,color=variable, linetype=variable)) +
+    geom_ribbon(data=data_plotting_ribbon, aes(x=ds, ymin=nachfrage_2020_normal_lower, ymax=nachfrage_2020_normal_upper), fill = "grey70", alpha=.6) +
+  scale_color_manual(values = color,limits = names(color)) +
+  scale_linetype_manual(values = linetype,limits = names(linetype)) +
+  scale_y_continuous(limits = c(0,100),breaks = seq(0,100,20)) +
+  scale_x_date(limits=c(as.Date("2019-01-01"),as.Date("2020-04-30")),date_breaks = "2 month") +
+  ylab("Nachfrage Sperrmüll") +
+  theme_bw() +
+  theme(legend.position = "bottom",
+        axis.title.x = element_blank(),
+        legend.title = element_blank())
+
+
+```
+
+
+
+

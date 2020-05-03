@@ -1,0 +1,16 @@
+"0","m <- data %>%
+  filter(split == 'train') %>%
+  prophet(.)
+"
+"2","Disabling weekly seasonality. Run prophet with weekly.seasonality=TRUE to override this.
+"
+"2","Disabling daily seasonality. Run prophet with daily.seasonality=TRUE to override this.
+"
+"0","m <- data %>%"
+"0","  filter(split == 'train') %>%"
+"0","  prophet(.)"
+"2","Disabling weekly seasonality. Run prophet with weekly.seasonality=TRUE to override this.
+"
+"2","Disabling daily seasonality. Run prophet with daily.seasonality=TRUE to override this.
+"
+"0","future <- make_future_dataframe(m, periods = (17)*7)"
