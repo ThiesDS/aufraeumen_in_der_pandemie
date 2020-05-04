@@ -1,12 +1,30 @@
 ---
-title: "Sperrmüll in der Pandemie"
+title: "Aufräumen in der Pandemie"
 output:
   html_document:
+    theme: cosmo
     df_print: paged
 ---
 
+```{r setup II, include=FALSE, eval=TRUE}
+knitr::opts_chunk$set(eval = TRUE, echo = FALSE,message = FALSE, warning = FALSE)
+```
 
-```{r, echo=FALSE,results='hide'}
+## Forschungsfrage
+
+Welche Auswirkungen hat die Pandemie auf das Aufräumverhalten der Menschen? 
+
+## Hypothese
+
+Die Pandemie führt zu einem Anstieg der Aufräumaktionen in deutschen Haushalten.
+
+## Daten
+
+Diese Hypothese muss operationalisiert werden, da Aufräumaktionen nicht direkt gemessen werden können. Als Proxi für Aufräumaktionen wird daher die Anzahl der Google Suchen für "Sperrmüll" in Detuschland herangezogen (Datenquelle: Google Trends).
+
+Die Operationelaisierung über Google Trends hat zweifelsfrei Limitationen, insb. in der Beschränkung auf nur einen Suchbegriff. Dennoch lässt sich dieser Datensatz als erste Indikation zur Überprüfung der Hypothese heranziehen.   
+
+```{r}
 
 library(tidyverse)
 library(prophet)
@@ -23,10 +41,32 @@ data <- read.csv("./data/google_trends_data_keyword_sperrmuell.csv",
 
 ```
 
+Folgende Abbildung stellt das Interesse an dem Suchbegriff "Sperrmüll" über die letzten fünf Jahre dar. Der Index hat den Wert 100 am höchsten Punkt.
 
 ```{r}
 
-date_thresh <- "2020-02-01"
+data %>%
+  ggplot() +
+    geom_line(aes(x=ds,y=y)) +
+  ylab("Interesse am Sperrmüll") +
+  theme_bw() +
+  theme(legend.position = "bottom",
+        axis.title.x = element_blank(),
+        legend.title = element_blank())
+
+```
+
+Mit bloßem Auge ist ein extremer Anstieg des Interesses zum Ende des Beobachtungszeitraums zu erkennen. Um den tatsächlichen Anstieg berechnen zu können müssen wir aber wissen wie sich der Verlauf im Jahr 2020 unter normalen Umständen entwickelt hätte. 
+
+## Analyse
+
+### Bestimmen des Interesses unter "normalen" Umständen
+
+Zur Bestimmung des Interesses unter normalen Umständen schätzen wir ein Zeitreihenmodel auf Basis der Jahr "normalen" Jahre, in unserem Falle von 2015 bis Ende 2019. Dieses Modell ermöglicht ein "fortführen" der Zeitreihe für den Zeitraum Januar bis April 2020. 
+
+```{r}
+
+date_thresh <- "2020-01-01"
 data <- data %>%
   mutate(split = ifelse(ds >= date_thresh,"predict","train"))
 
@@ -54,51 +94,40 @@ data_modeling <- data %>%
 
 ```
 
-```{r}
-
-last_week_increase <- data_modeling %>% 
-  mutate(diff = (y-yhat)/yhat) %>%
-  filter(ds == max(ds)) %>%
-  pull(diff)
-last_week_increase
-
-```
+Folgende Abbildung zeigt den weiteren Verlauf unter "normalen" Umständen für das Jahr 2020.
 
 ```{r}
 
 data_plotting <- data_modeling %>%
-  mutate(nachfrage_2019 = ifelse(ds<=as.Date(date_thresh),y,NA),
-         nachfrage_2020_normal = ifelse(ds>=as.Date(date_thresh)-7,yhat,NA),
-         nachfrage_2020_normal_lower = ifelse(ds>=as.Date(date_thresh)-7,yhat_lower,NA),
-         nachfrage_2020_normal_upper = ifelse(ds>=as.Date(date_thresh)-7,yhat_upper,NA),
-         nachfrage_2020_pandemie = ifelse(ds>=as.Date(date_thresh)-7,y,NA)) %>%
-  select(ds, nachfrage_2019,nachfrage_2020_normal,nachfrage_2020_normal_lower,nachfrage_2020_normal_upper,nachfrage_2020_pandemie) %>%
+  mutate(interesse_2019 = ifelse(ds<=as.Date(date_thresh),y,NA),
+         interesse_2020_normal = ifelse(ds>=as.Date(date_thresh),yhat,NA),
+         interesse_2020_normal_lower = ifelse(ds>=as.Date(date_thresh),yhat_lower,NA),
+         interesse_2020_normal_upper = ifelse(ds>=as.Date(date_thresh),yhat_upper,NA)) %>%
+  select(ds, interesse_2019,interesse_2020_normal,interesse_2020_normal_lower,interesse_2020_normal_upper) %>%
   melt(., id.vars=c("ds"))
 
 data_plotting_ribbon <- data_modeling %>%
-  mutate(nachfrage_2020_normal_lower = ifelse(ds>=as.Date(date_thresh)-7,yhat_lower,NA),
-         nachfrage_2020_normal_upper = ifelse(ds>=as.Date(date_thresh)-7,yhat_upper,NA))
+  mutate(interesse_2020_normal_lower = ifelse(ds>=as.Date(date_thresh),yhat_lower,NA),
+         interesse_2020_normal_upper = ifelse(ds>=as.Date(date_thresh),yhat_upper,NA))
 
 color <- c(
-  "nachfrage_2019" = "black",
-  "nachfrage_2020_normal" = "black", 
-  "nachfrage_2020_pandemie" = "red"
+  "interesse_2019" = "black",
+  "interesse_2020_normal" = "black"
 )
 linetype <- c(
-  "nachfrage_2019" = "solid",
-  "nachfrage_2020_normal" = "dashed", 
-  "nachfrage_2020_pandemie" = "solid"
+  "interesse_2019" = "solid",
+  "interesse_2020_normal" = "dashed"
 )
 
 data_plotting %>%
   ggplot() +
     geom_line(aes(x=ds,y=value,color=variable, linetype=variable)) +
-    geom_ribbon(data=data_plotting_ribbon, aes(x=ds, ymin=nachfrage_2020_normal_lower, ymax=nachfrage_2020_normal_upper), fill = "grey70", alpha=.6) +
+    geom_ribbon(data=data_plotting_ribbon, aes(x=ds, ymin=interesse_2020_normal_lower, ymax=interesse_2020_normal_upper), fill = "grey70", alpha=.6) +
   scale_color_manual(values = color,limits = names(color)) +
   scale_linetype_manual(values = linetype,limits = names(linetype)) +
   scale_y_continuous(limits = c(0,100),breaks = seq(0,100,20)) +
-  scale_x_date(limits=c(as.Date("2019-01-01"),as.Date("2020-04-30")),date_breaks = "2 month") +
-  ylab("Nachfrage Sperrmüll") +
+  scale_x_date(limits=c(as.Date("2015-05-03"),as.Date("2020-04-30")),date_breaks = "1 year") +
+  ylab("interesse Sperrmüll") +
   theme_bw() +
   theme(legend.position = "bottom",
         axis.title.x = element_blank(),
@@ -107,6 +136,72 @@ data_plotting %>%
 
 ```
 
+### Berechnung der Differenz zwischen "Normal" und "Pandemie"
+
+Die Berechnung der Differenz zwischen "Normal" und "Pandemie" Umständen lässt die Überprüfung der Hypothese zu. Folgende Abbildung zeigt zusätzlich das tatsächliche Interesse nach dem Suchbegriff "Sperrmüll" in der Pandemie.
+
+```{r}
+
+data_plotting <- data_modeling %>%
+  mutate(interesse_2019 = ifelse(ds<=as.Date(date_thresh),y,NA),
+         interesse_2020_normal = ifelse(ds>=as.Date(date_thresh),yhat,NA),
+         interesse_2020_normal_lower = ifelse(ds>=as.Date(date_thresh),yhat_lower,NA),
+         interesse_2020_normal_upper = ifelse(ds>=as.Date(date_thresh),yhat_upper,NA),
+         interesse_2020_pandemie = ifelse(ds>=as.Date(date_thresh),y,NA)) %>%
+  select(ds, interesse_2019,interesse_2020_normal,interesse_2020_normal_lower,interesse_2020_normal_upper,interesse_2020_pandemie) %>%
+  melt(., id.vars=c("ds"))
+
+data_plotting_ribbon <- data_modeling %>%
+  mutate(interesse_2020_normal_lower = ifelse(ds>=as.Date(date_thresh),yhat_lower,NA),
+         interesse_2020_normal_upper = ifelse(ds>=as.Date(date_thresh),yhat_upper,NA))
+
+color <- c(
+  "interesse_2019" = "black",
+  "interesse_2020_normal" = "black", 
+  "interesse_2020_pandemie" = "red"
+)
+linetype <- c(
+  "interesse_2019" = "solid",
+  "interesse_2020_normal" = "dashed", 
+  "interesse_2020_pandemie" = "solid"
+)
+
+data_plotting %>%
+  ggplot() +
+    geom_line(aes(x=ds,y=value,color=variable, linetype=variable)) +
+    geom_ribbon(data=data_plotting_ribbon, aes(x=ds, ymin=interesse_2020_normal_lower, ymax=interesse_2020_normal_upper), fill = "grey70", alpha=.6) +
+  scale_color_manual(values = color,limits = names(color)) +
+  scale_linetype_manual(values = linetype,limits = names(linetype)) +
+  scale_y_continuous(limits = c(0,100),breaks = seq(0,100,20)) +
+  scale_x_date(limits=c(as.Date("2015-05-03"),as.Date("2020-04-30")),date_breaks = "1 year") +
+  ylab("interesse Sperrmüll") +
+  theme_bw() +
+  theme(legend.position = "bottom",
+        axis.title.x = element_blank(),
+        legend.title = element_blank())
 
 
+```
+
+```{r}
+
+last_week_increase_ew <- data_modeling %>% 
+  mutate(diff = (y-yhat)/yhat) %>%
+  filter(ds == max(ds)) %>%
+  pull(diff)
+
+last_week_increase_ub <- data_modeling %>% 
+  mutate(diff = (y-yhat_upper)/yhat_upper) %>%
+  filter(ds == max(ds)) %>%
+  pull(diff)
+
+```
+
+Zu Anfang des Jahres verläuft das Interesse noch größtenteils in der mit Hilfe des "Normalmodells" vorhergesagten Bandbreite. Ab dem 05.05.2020, wo das Interesse unter normalen Umständen wieder zurückgeht, steigt das Interesse jedoch stark an. In der Woche vom 26.04.2020 beträgt die Differenz zwischen "Normal" und "Pandemie" `r round(last_week_increase_ew*100,2)`%. Auch wenn wir von der oberen Grenze der Bandbreite ausgehen liegt die Differenz bei `r round(last_week_increase_ub*100,2)`%.
+
+## Fazit
+
+Die durchgeführte Analyse legt nahe, dass die Pandemie tatsächlich zu einem Anstieg der Aufräumaktionen in deutschen Haushalten fürht. Auf Basis von Google Trends Daten wurde eine `r round(last_week_increase_ew*100,2)`%-ige - in einer defensiveren Schätzung `r round(last_week_increase_ub*100,2)`%-ige - Erhöhung des Interesses an dem Suchbegriff "Sperrmüll" berechnet werden. 
+
+Diese Analyse hat indessen zwei wesentliche Anknüpfungspunkte für Verbesserungen. Zum einen bildet die Operationelaisierung über Google Trends, insb. in der Beschränkung auf nur einen Suchbegriff, die Realität nur sehr limitiert wieder. Zur Verbesserung könnten weitere Suchbegriffe herangezogen oder eine Primärdatenerhebung in Form einer Umfrage erhoben werden. Zum anderen kann das Modell zur Bestimmung des Interesses unter "normalen" Umständen deutlich verbessert werden.
 
